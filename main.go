@@ -11,10 +11,12 @@ import (
 //"path/filepath"
 //"strings"
 
+var levels map[int][]bool
+
 var level int
 
 func dirTree(dir *os.File, path string, printfiles bool) error {
-	//fmt.Printf("dir %v, path %v, printfiles %v \n", dir, path, printfiles)
+	fmt.Printf("dir %v, path %v, printfiles %v \n", dir, path, printfiles)
 	dir, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("No such directory")
@@ -23,6 +25,7 @@ func dirTree(dir *os.File, path string, printfiles bool) error {
 
 	fileInfos, err := dir.Readdir(-1)
 	if err != nil {
+		//fmt.Println(err)
 		return fmt.Errorf("No items in directory")
 	}
 	//fmt.Printf("fileInfos %v\n", fileInfos)
@@ -36,54 +39,53 @@ func dirTree(dir *os.File, path string, printfiles bool) error {
 		}
 	}
 	sort.Strings(dirItems)
-
+	levels[level] = []bool{true, true}
 	if len(dirItems) != 0 {
 		for i, name := range dirItems {
-			//if level == 0 {
 			if i != len(dirItems)-1 {
-				fmt.Println("├───" + name)
+				levels[level][1] = true
+				if level == 0 {
+					fmt.Println("├───" + name)
+				} else if levels[level][0] == levels[level-1][0] {
+					fmt.Printf("│\t")
+					fmt.Println("├───" + name)
+				}
 			} else {
-				fmt.Println("└───" + name)
+				levels[level][1] = false
+				if level == 0 {
+					fmt.Println("└───" + name)
+				} else if levels[level][0] == levels[level-1][0] {
+					for i := 0; i < level; i++ {
+						if levels[i][0] && levels[i][1] {
+							fmt.Printf("|\t")
+						} else {
+							fmt.Printf("\t")
+						}
+					}
+					if i != len(dirItems)-1 {
+						fmt.Println("├───" + name)
+					} else {
+						fmt.Println("└───" + name)
+					}
+				}
 			}
+			//fmt.Printf("│\t")
+
 			newPath := path + "/" + name
 			level++
 			err := dirTree(dir, newPath, printfiles)
 			if err != nil {
 				return err
 			}
+
 			//}
 		}
-		level--
-	} else {
-		level--
+
+		//level--
 	}
-	// if len(dirItems) != 0 {
-	// 	for i, name := range dirItems {
-	// 		//fmt.Printf("dir is %v\n", dirItems)
-	// 		newPath := path + "/" + name
-	// 		if level == 0 {
-	// 			// fmt.Printf("├───" + name + "\n")
-	// 			fmt.Printf("├───%v\n", name)
-	// 			level++
-	// 		} else {
-	// 			indent := "│\t"
-	// 			// for i := 0; i < level; i++ {
-	// 			// 	indent += "\t"
-	// 			// }
-	// 			fmt.Printf(indent + "└───" + name + "\n")
-	// 			fmt.Println(name)
-	// 			level++
-	// 		}
-	// 		err := dirTree(dir, newPath, printfiles)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// 	level--
-	// } else {
-	// 	level--
-	// 	return nil
-	// }
+	levels[level][0] = false
+	level--
+
 	return nil
 }
 
@@ -94,6 +96,7 @@ func main() {
 	}
 	path := os.Args[1]
 	printFiles := len(os.Args) == 3 && os.Args[2] == "-f"
+	levels = make(map[int][]bool, 1)
 	err := dirTree(out, path, printFiles)
 	if err != nil {
 		panic(err.Error())
