@@ -13,15 +13,11 @@ type levelStatus struct {
 	headOnLast bool
 }
 
-//"io"
-//"path/filepath"
-//"strings"
-
-// var dirItems map[string]os.FileInfo
 var level int
 var levels []levelStatus
 
 func dirTree(out io.Writer, path string, printfiles bool) error {
+	level = 0
 	levels = make([]levelStatus, 1)
 	err := dirTreeIn(&out, path, printfiles)
 	if err != nil {
@@ -40,11 +36,9 @@ func writeStroke(out *io.Writer, prefix, str string, index int, dirItems map[str
 		}
 		size = fmt.Sprintf(" (%s)", size)
 	}
-	//fmt.Printf("before for prefix %v\n", prefix)
 	for i := level; i > 0; i-- {
-		//fmt.Printf("in for i %v, level %v, levels[i].isOpened %v, levels[i].headOnLast %v\n\n", i, level, levels[i].isOpened, levels[i].headOnLast)
 		if levels[i-1].isOpened && !levels[i-1].headOnLast {
-			prefix = "|\t" + prefix
+			prefix = "│\t" + prefix
 		} else {
 			prefix = "\t" + prefix
 		}
@@ -67,7 +61,7 @@ func sortKeys(m map[string]os.FileInfo) (s []string) {
 func dirTreeIn(out *io.Writer, path string, printfiles bool) error {
 	dir, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("No such directory")
+		return err
 	}
 	defer dir.Close()
 
@@ -96,94 +90,19 @@ func dirTreeIn(out *io.Writer, path string, printfiles bool) error {
 				prefix = "└───"
 			}
 			writeStroke(out, prefix, item, i, dirItems)
-			newPath := path + "/" + item
-			level++
-			levels = append(levels, levelStatus{isOpened: true, headOnLast: false})
-			dirTreeIn(out, newPath, printfiles)
+			if dirItems[item].IsDir() {
+				newPath := path + "/" + item
+				level++
+				levels = append(levels, levelStatus{isOpened: true, headOnLast: false})
+				dirTreeIn(out, newPath, printfiles)
+			}
 		}
 	}
 	levels[level].isOpened = false
+	levels[level].headOnLast = false
 	level--
 	return nil
 }
-
-// var levels map[int][]bool
-
-// var level int
-
-// func dirTree(dir io.Writer, path string, printfiles bool) error {
-// 	fmt.Printf("dir %v, path %v, printfiles %v \n", dir, path, printfiles)
-// 	dir, err := os.Open(path)
-// 	if err != nil {
-// 		return fmt.Errorf("No such directory")
-// 	}
-// 	defer dir.Close()
-
-// 	fileInfos, err := dir.Readdir(-1)
-// 	if err != nil {
-// 		//fmt.Println(err)
-// 		return fmt.Errorf("No items in directory")
-// 	}
-// 	//fmt.Printf("fileInfos %v\n", fileInfos)
-// 	var dirItems []string
-
-// 	for _, fi := range fileInfos {
-// 		if !fi.IsDir() && !printfiles {
-// 			continue
-// 		} else {
-// 			dirItems = append(dirItems, fi.Name())
-// 		}
-// 	}
-// 	sort.Strings(dirItems)
-// 	levels[level] = []bool{true, true}
-// 	if len(dirItems) != 0 {
-// 		for i, name := range dirItems {
-// 			if i != len(dirItems)-1 {
-// 				levels[level][1] = true
-// 				if level == 0 {
-// 					fmt.Println("├───" + name)
-// 				} else if levels[level][0] == levels[level-1][0] {
-// 					fmt.Printf("│\t")
-// 					fmt.Println("├───" + name)
-// 				}
-// 			} else {
-// 				levels[level][1] = false
-// 				if level == 0 {
-// 					fmt.Println("└───" + name)
-// 				} else if levels[level][0] == levels[level-1][0] {
-// 					for i := 0; i < level; i++ {
-// 						if levels[i][0] && levels[i][1] {
-// 							fmt.Printf("|\t")
-// 						} else {
-// 							fmt.Printf("\t")
-// 						}
-// 					}
-// 					if i != len(dirItems)-1 {
-// 						fmt.Println("├───" + name)
-// 					} else {
-// 						fmt.Println("└───" + name)
-// 					}
-// 				}
-// 			}
-// 			//fmt.Printf("│\t")
-
-// 			newPath := path + "/" + name
-// 			level++
-// 			err := dirTree(dir, newPath, printfiles)
-// 			if err != nil {
-// 				return err
-// 			}
-
-// 			//}
-// 		}
-
-// 		//level--
-// 	}
-// 	levels[level][0] = false
-// 	level--
-
-// 	return nil
-// }
 
 func main() {
 	out := os.Stdout
@@ -196,5 +115,4 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	//fmt.Printf("out %v %[1]T, path %v, printfiles %v", out, path, printFiles)
 }
